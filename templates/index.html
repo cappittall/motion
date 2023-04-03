@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/img/favicon.png" />
+    <title>Farmakod İSG App</title> 
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+
+    <style>
+        body {
+            display: block;
+            justify-content:center;
+            align-items: center;
+            height: 100vh;
+            margin: 250px 200px;
+        }
+        .container {
+            display: flex;
+     
+        }
+        .controls {
+            margin-right: 20px;
+        }
+        #frame, #image-container {
+            position:fixed;
+            top:5px;
+            left:5px;
+            width:970px;
+            height:650px;
+            z-index:-1;
+            border: 10px solid green;
+            position: absolute;
+
+        }
+        #frameText {
+            position: absolute;
+            top: 70%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color:red;
+            /* You can add other styles like color, font-family, etc. */
+        }
+
+        .line {
+            position: absolute;
+            z-index:2;
+        }
+        input[type=range] {
+            min-width:250px;
+        }
+        input[type=checkbox]{
+ 
+        }
+        #reLoadbtn {
+            position:fixed;
+            bottom:15px;
+            left:60px;
+            display:none;
+            z-index:10;
+
+        }
+        @keyframes blink {
+            0%, 49% {
+                opacity: 1;
+            }
+            50%, 100% {
+                opacity: 0;
+            }
+        }
+        .red-area {
+            position: absolute;
+            background-color: rgba(255, 0, 0, .3); /* Transparent red */
+        }
+
+        .blink {
+            animation: blink 1s linear infinite;
+            color:red;
+            font-size: 28px;
+            font-weight: bold;
+    
+        }
+
+       /* Add this new CSS class to your CSS */
+        #detLinesContainer {
+            position: fixed;
+            right: 85px;
+            top: 5px;
+            max-height: 650px;
+            overflow-y: auto;         
+            border: 5px solid green;
+            padding:5px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="container" class="container">
+        
+        <div class="controls">
+            <div hidden>
+                <select name="islem_turu" required style="width: 100%;" id="videoList" class="control form-control">
+                    <!--option value="" disabled selected>Test Videoları</!--option-->
+                    {% for key, value in videos.items() %}
+                    <option value="{{ key }}">{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div hidden>
+                <label >
+                    <input class= "form-check-input" type="checkbox" id="checkbox1" checked> Tehlikeli bölge SOL 
+                    <input class= "" type="range" id="slider1" min="1" max="99" value="{{ pos[0] }}">
+                    <span  class="form-check-label" id="value1">%{{ pos[0] }}</span>
+                </label>
+            </div>
+            <div hidden>
+                <label>
+                    <input class= "form-check-input" type="checkbox" id="checkbox2" checked> Tehlikeli Bölge SAĞ 
+                    <input type="range" id="slider2" min="1" max="99" value="{{ pos[1] }}">
+                    <span id="value2">%{{ pos[1] }}</span>
+                </label>
+            </div>
+            <div hidden>
+                <label  >
+                    <input class= "form-check-input" type="checkbox" id="checkbox3" checked> Tehlikeli bölge ÜST 
+                    <input type="range" id="slider3" min="1" max="99" value="{{ pos[2] }}">
+                    <span id="value3">%{{ pos[2] }}</span>
+                </label>
+            </div>
+            <div hidden>
+                <label>
+                    <input class= "form-check-input" type="checkbox" id="checkbox4" checked> Hareketsizlik Süresi (Saniye) 
+                    <input type="range" id="slider4" min="1" max="99" value="{{ pos[3] }}">
+                    <span id="value4">%{{ pos[3] }}</span>
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input class= "form-check-input" type="checkbox" id="checkbox5" checked> Hareketsizlik Süresi (Saniye) 
+                    <input type="range" id="slider5" min="1" max="99" value="{{ pos[4] }}">
+                    <span id="value5">%{{ pos[4] }}</span>
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input class= "form-check-input" type="checkbox" id="checkbox6" checked > Hassasiyet ayarı  . 
+                    <input type="range" id="slider6" min="1" max="99" value="{{ pos[5] }}">
+                    <span id="value6">%{{ pos[5] }}</span>
+                </label>
+            </div>
+            <!-- Add this after the last slider -->
+            <br><br>
+            
+        </div>
+    
+    </div>
+    <div id="im-line-container"> 
+        <div id="frame">
+            <canvas id="canvas" width="950" height="630"></canvas>
+            <div class="line" id="line1" style="left: {{ pos[0] }}%; top: 0; bottom: 0; width: 1px; background: green;"></div>
+            <div class="line" id="line2" style="left: {{ pos[1] }}%; top: 0; bottom: 0; width: 1px; background: green;"></div>
+            <div class="line" id="line3" style="top: {{ pos[2] }}%; left: 0; right: 0; height: 1px; background: green;"></div>
+            <div class="line" id="line4" style="top: {{ pos[3] }}%; left: 0; right: 0; height: 1px; background: green;"></div>
+            <div class="red-area"></div>
+            
+        </div>
+        <div id="detLinesContainer" hidden>
+            <ul id="det-lines-list"></ul>
+        </div>
+    </div>
+    <br/>
+
+    
+
+    <div class='blink' id="waitMessage" style="display:none;"> Lütfen bekleyiniz... </div>
+    <button id="submitBtn">Gönder v3</button>
+    <div id="image-container"></div>
+    <button id="reLoadbtn" onclick="reloadPage()">DURDUR!</button>
+
+    <script>
+        const checkboxes = [...document.querySelectorAll("input[type=checkbox]")];
+        const sliders = [...document.querySelectorAll("input[type=range]")];
+        const values = [...document.querySelectorAll("span")];
+        const lines = [...document.querySelectorAll(".line")];
+        const pos = {{ pos | tojson }};
+
+        function paintRedArea() {
+            const redArea = document.querySelector('.red-area');
+            sliders.forEach((slider, index)=> {
+                
+                redArea.style.left = `${pos[0]}%`;
+                redArea.style.width = `${pos[1] - pos[0]}%`;
+                redArea.style.top = `${pos[2]}%`;
+                redArea.style.height = `${pos[3] - pos[2]}%`;
+
+            })
+
+        }
+
+        const urls = [
+            "/motion-detection-app" //0
+            ]
+
+        const domainEndPoint =  urls[0]
+        
+        // const frametext = document.getElementById('frameText');
+        checkboxes.forEach((checkbox, index) => {
+            checkbox.addEventListener("change", () => {
+                lines[index].style.display = checkbox.checked ? "block" : "none";
+            });
+        });
+
+        sliders.forEach((slider, index) => {
+            slider.addEventListener("input", () => {
+               
+                values[index].textContent = '%' + slider.value;
+    
+                pos[index]=parseInt(slider.value);
+
+      
+                 paintRedArea();
+            });
+        });
+
+        async function fetchAndRenderFrame() {
+            const selectedVideo = videoList.value;
+            
+            container.style.display = 'none';
+            submitBtn.style.display = 'none';
+            reLoadbtn.style.display = 'block';
+            waitMessage.style.display = 'block';
+        
+            frame.style.zIndex = 3;
+            const lineValues = sliders.map((slider) => parseInt(slider.value));
+            const checkboxValues = checkboxes.map((checkbox) => checkbox.checked);
+            const body = JSON.stringify({ lineValues: lineValues, checkboxValues: checkboxValues, selectedVideo: selectedVideo, start: true });
+
+            try {
+                const response = await fetch(domainEndPoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: body
+                });
+                console.log(response.ok);
+                if (response.ok) {
+
+                    waitMessage.style.opacity = 0; // Hide the element
+                    waitMessage.classList.remove("blink"); // Stop the blinking animation
+
+                    const response_data = await response.json();
+
+                    const img_base64 = response_data.image;
+                    const img = new Image();
+                    img.src = `data:image/png;base64,${img_base64}`;
+                    img.id = 'result-img';
+                
+                    // Wait for the image to load before fetching the next frame
+                    img.onload = () => {
+                        // Draw the image on the canvas
+                        const canvas = document.getElementById("canvas");
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        fetchAndRenderFrame(); // Recursively fetch the next frame
+                    };
+                } else {
+                    console.error("Error: Response not ok");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        submitBtn.addEventListener("click", fetchAndRenderFrame);
+                        
+        async function reloadPage() {
+            
+            const selectedVideo =  videoList.value;
+            const lineValues = sliders.map((slider) => parseInt(slider.value)); 
+            const checkboxValues = checkboxes.map((checkbox) => checkbox.checked); 
+
+            const response = await fetch(domainEndPoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ lineValues: lineValues, checkboxValues: checkboxValues, selectedVideo:selectedVideo, start:false }),
+                });
+            location.reload();
+        
+        }
+        paintRedArea() 
+    </script>
+</body>
+</html>
+

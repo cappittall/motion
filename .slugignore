@@ -1,0 +1,11 @@
+cop
+myenv
+shells
+tools
+utils
+*.avi
+*.jpg
+.space
+.git
+.deta
+.

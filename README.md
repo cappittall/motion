@@ -1,4 +1,4 @@
-# İşçi Sağlığı ve Güvenliği: Hareketsizlil Detectörü
+# İşçi Sağlığı ve Güvenliği: Hareketsizlik Detectörü
 
 This is a Python repository for the Worker Health and Safety (İşçi Sağlığı ve Güvenliği) project that focuses on detecting NO-MOTINON
 
@@ -54,12 +54,17 @@ pip install -r requirements.txt
 ```
 pip install "uvicorn[standard]"
 
-uvicorn detect:app --reload
+uvicorn motions:app --reload
+```
+Opsiyonel olarak port numarasını değiştirebilirsiniz - In case you may change port number:
+
+```
+ uvicorn motions:app --reload --host 0.0.0.0 --port 8001
 ```
 
 2. Web tarayıcıyı açın ve tarayıcıda adresine gidin [localhost:8000](http://localhost:8000) -  Open your web browser and navigate to [localhost:8000](http://localhost:8000) 
 
-klasörü altında kaydedilir
+* Port numarasına dikkat ediniz. Geçerli port numarası :8000 dir.
 
 ## Ek açıklamalar - Instructions
 

@@ -125,10 +125,10 @@ async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
                     proces = Process(target=play_sound, args=(sound_file, True,))
                     proces.start()
                     # motion_duration = 0
-        text = f"Hareketsizlik: {motion_duration:.3f}/{round(no_motion_duration)} ({'Dikkat' if proces.is_alive() else 'Normal'}) H. Fark :{distance:.3f} Fps: {fps}, Hassasiyet:{motion_threshold *1000:.0f}"
+        text = f"Hareketsizlik: {motion_duration:.2f}/{round(no_motion_duration)} ({'Dikkat' if proces.is_alive() else 'Normal'}) H. Fark :{distance:.3f} Fps: {fps}, Hassasiyet:{motion_threshold *1000:.0f}"
         # Update motion status
         motion_status.append(np.array([[lmk.x, lmk.y] for lmk in result.pose_landmarks.landmark]))
-        cv2.putText(annotated_image, text, (10,30), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0,0,255), 1)
+        cv2.putText(annotated_image, text, (10,30), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0,255,0), 1)
         is_success, img_buffer = cv2.imencode(".png", annotated_image)
         if is_success:
             img_base64 = base64.b64encode(img_buffer).decode("utf-8")

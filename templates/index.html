@@ -149,7 +149,7 @@
                 <label>
                     <input class= "form-check-input" type="checkbox" id="checkbox5" checked> Hareketsizlik Süresi (Saniye) 
                     <input type="range" id="slider5" min="1" max="99" value="{{ pos[4] }}">
-                    <span id="value5">%{{ pos[4] }}</span>
+                    <span id="value5">{{ pos[4] }} Saniye</span>
                 </label>
             </div>
             <div>
@@ -184,7 +184,7 @@
     
 
     <div class='blink' id="waitMessage" style="display:none;"> Lütfen bekleyiniz... </div>
-    <button id="submitBtn">Gönder v3</button>
+    <button id="submitBtn">Gönder (v1)</button>
     <div id="image-container"></div>
     <button id="reLoadbtn" onclick="reloadPage()">DURDUR!</button>
 
@@ -224,7 +224,7 @@
         sliders.forEach((slider, index) => {
             slider.addEventListener("input", () => {
                
-                values[index].textContent = '%' + slider.value;
+                values[index].textContent = index===4 ? slider.value + ' Saniye':'%' + slider.value;
     
                 pos[index]=parseInt(slider.value);
 

@@ -11,3 +11,5 @@ ultralytics==8.0.54
 serial==0.0.97
 python-periphery==2.3.0
 uvicorn==0.21.1
+mediapipe
+pygame

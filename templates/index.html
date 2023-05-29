@@ -194,6 +194,7 @@
         const values = [...document.querySelectorAll("span")];
         const lines = [...document.querySelectorAll(".line")];
         const pos = {{ pos | tojson }};
+        let loopback = true;
 
         function paintRedArea() {
             const redArea = document.querySelector('.red-area');
@@ -244,7 +245,7 @@
             frame.style.zIndex = 3;
             const lineValues = sliders.map((slider) => parseInt(slider.value));
             const checkboxValues = checkboxes.map((checkbox) => checkbox.checked);
-            const body = JSON.stringify({ lineValues: lineValues, checkboxValues: checkboxValues, selectedVideo: selectedVideo, start: true });
+            const body = JSON.stringify({ lineValues: lineValues, checkboxValues: checkboxValues, selectedVideo: selectedVideo, start: loopback });
 
             try {
                 const response = await fetch(domainEndPoint, {
@@ -261,20 +262,22 @@
                     waitMessage.classList.remove("blink"); // Stop the blinking animation
 
                     const response_data = await response.json();
-
-                    const img_base64 = response_data.image;
-                    const img = new Image();
-                    img.src = `data:image/png;base64,${img_base64}`;
-                    img.id = 'result-img';
-                
-                    // Wait for the image to load before fetching the next frame
-                    img.onload = () => {
-                        // Draw the image on the canvas
-                        const canvas = document.getElementById("canvas");
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        fetchAndRenderFrame(); // Recursively fetch the next frame
-                    };
+                    
+                    if (response_data.detail !== "Stopping loop due to condition.") {
+                        const img_base64 = response_data.image;
+                        const img = new Image();
+                        img.src = `data:image/png;base64,${img_base64}`;
+                        img.id = 'result-img';
+                    
+                        // Wait for the image to load before fetching the next frame
+                        img.onload = () => {
+                            // Draw the image on the canvas
+                            const canvas = document.getElementById("canvas");
+                            const ctx = canvas.getContext("2d");
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            fetchAndRenderFrame(); // Recursively fetch the next frame
+                        };
+                    }
                 } else {
                     console.error("Error: Response not ok");
                 }
@@ -287,18 +290,10 @@
                         
         async function reloadPage() {
             
-            const selectedVideo =  videoList.value;
-            const lineValues = sliders.map((slider) => parseInt(slider.value)); 
-            const checkboxValues = checkboxes.map((checkbox) => checkbox.checked); 
-
-            const response = await fetch(domainEndPoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ lineValues: lineValues, checkboxValues: checkboxValues, selectedVideo:selectedVideo, start:false }),
-                });
-            location.reload();
+            loopback = false;
+            setTimeout(()=>{
+               location.reload(); 
+            },1000)
         
         }
         paintRedArea() 

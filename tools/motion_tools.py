@@ -71,9 +71,9 @@ def average_y_coordinate(landmarks, indices):
 def landmarks_distance(landmark1, landmark2):
     return np.sqrt((landmark1.x - landmark2.x) ** 2 + (landmark1.y - landmark2.y) ** 2)
 
-def is_using_cellphone(face_landmarks, hand_landmarks, mp_hands):
+def is_using_cellphone(face_landmarks, hand_landmarks, mp_hands, cellphone_distance_threshold=0.2):
     # Define a threshold distance for cell phone usage detection
-    cellphone_distance_threshold = 0.5
+
 
     # Check if the operator's hand is close to their face using key landmarks
     # You can adjust the landmarks to better suit the detection of cell phone usage
@@ -92,3 +92,12 @@ def is_using_cellphone(face_landmarks, hand_landmarks, mp_hands):
             return True
 
     return False
+
+
+
+def text_update(text, smoking_detected, mp_cellphone_usage_detected, cellphone_usage_detected, emotion):
+        text += " | Sigara: VAR " if smoking_detected else " | Sigara: YOK "
+        text += f" | Tel: VAR.({mp_cellphone_usage_detected})" if cellphone_usage_detected else f" | Tel: YOK.({mp_cellphone_usage_detected})"
+        text += f"| Ruhsal D: {emotion}"
+        return text
+    

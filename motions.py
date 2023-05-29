@@ -1,32 +1,42 @@
 
 import base64
+import datetime
 import json
+import time
 import cv2
 import os
 import copy
 import csv
 
 import numpy as np
+from PIL import Image
 
 from pydantic import BaseModel
 import pygame
-from threading import Thread
-from multiprocessing import Process, Queue
+
+from multiprocessing import Process
+from collections import defaultdict
+from collections import deque
+
+
 
 from fastapi import FastAPI, File, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.responses import FileResponse
+from fastapi.responses import JSONResponse
+
 from typing import List
 # mediapipe
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-import itertools
+# YOLO 
+from ultralytics import YOLO 
+yolo_model = YOLO("yolov8l.pt")
+
 from emotion.model import KeyPointClassifier
-from tools import visualize, pre_process_landmark, average_y_coordinate, calc_bounding_rect, \
-    calc_landmark_list, euclidean_distance, is_using_cellphone, landmarks_distance
+from tools import *
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -39,13 +49,11 @@ MODEL_PATH = "emotion/model/keypoint_classifier/keypoint_classifier.tflite"
 
 mp_drawing = mp.solutions.drawing_utils
 
-# Initialize effi model
+# Mp object detection - Initialize effi model
 base_options = python.BaseOptions(model_asset_path='models/effi/efficientdet_lite2_uint8.tflite')
-options = vision.ObjectDetectorOptions(base_options=base_options,
-                                       score_threshold=0.5, 
-                                        #running_mode=mp.tasks.vision.RunningMode.LIVE_STREAM,
-                                        )
+options = vision.ObjectDetectorOptions(base_options=base_options, score_threshold=0.3)
 detector = vision.ObjectDetector.create_from_options(options)
+
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
@@ -63,15 +71,23 @@ face_mesh = mp_face_mesh.FaceMesh(
 
 drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
-# Initialize the motion status
+# Initialize the motion vars
 motion_status = []
 motion_duration = 0
+distance = 0
+
 no_motion_duration = 3  #  seconds
 fps = 10  # Assuming the camera captures 30 frames per second
 motion_threshold = 0.5  # Initial value 0.01 - 0.1
-cap = None
 keypoint_classifier = None
 
+# Initialize cell phone vars
+
+
+# Initialize Emotion vars
+dominant_emotions = []  # List to store dominant emotions
+emotion_data = deque(maxlen=1*60*6)  # 5 fps assuming fps frames per second
+shift_start_time = datetime.datetime.now()
 
 # Read labels
 with open('emotion/model/keypoint_classifier/keypoint_classifier_label.csv',
@@ -111,37 +127,52 @@ class LineValuesAndCheckboxes(BaseModel):
     start:bool
 
 
-proces = distance = motion_threshold = motion_duration =  None
+proces = distance = cap = None
 @app.post('/motion-detection-app')
 async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
 
-    global cap, SOUND_FILE, keypoint_classifier,  \
+    global cap, SOUND_FILE, keypoint_classifier, start, \
         pose, proces, motion_duration, mp, \
-        distance,  face_mesh, mp_face_mesh, mp_hands, hands
+        distance,  face_mesh, mp_face_mesh, mp_hands, hands, \
+        dominant_emotions, emotion_counts, emotion_data, shift_start_time, emotion_chart
+
     # Initialize the camera
     no_motion_duration = data.lineValues[4] 
     motion_threshold = data.lineValues[5] / 1000 # 0.01 - 0.1
     smoking_distance_threshold = 0.1
-
     smoking_detected = False
+    cellphone_distance_threshold = 0.2
     mp_cellphone_usage_detected = False
     cellphone_usage_detected = False
     text = ""
     emotion = ""
-    
-    
-    if not data.start:  
+        
+    if not data.start:
+        print('reseting....')
+        cap.release()
+        cap = None
         with open('data/initial.txt', 'w') as f: 
             f.write('\n'.join(map(str, data.lineValues)))
+            
+        return JSONResponse(status_code=200, content={"detail": "Stopping loop due to condition."})
+    
     if cap is None:
-        motion_duration = 0
-        distance = 0
         proces = Process(target=play_sound, args=(SOUND_FILE, False, ))
         proces.start()        
         keypoint_classifier = KeyPointClassifier(model_path = MODEL_PATH)        
         cap = cv2.VideoCapture(0, cv2.CAP_ANY)
-       
+        start = 0
+        # Emotion init
+        dominant_emotions = []
+        emotion_counts = defaultdict(int)
+        emotion_data = deque(maxlen=1*60*6) 
+        emotion_chart =  np.full((200, 200, 4), 255, dtype=np.uint8)  # create an opaque white image
+        emotion_chart[:, :, 3] = 0  # make the image fully transparent
+
+
     ret, frame = cap.read()
+    fps2 = 1/(time.monotonic() - start)
+    start=time.monotonic()
     if ret:
         debug_image = copy.deepcopy( cv2.flip(frame.copy(), 1) )
         fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -154,7 +185,6 @@ async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
         image.flags.writeable = True
         
         color = (0,0,255)
-        
         if face_results.multi_face_landmarks:
             
             # Calculate motion
@@ -173,14 +203,13 @@ async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
                 if motion_duration >= no_motion_duration and not proces.is_alive() :
                     # Trigger alarm
                     print(f"Alarm: No motion detected for {motion_duration} second")
-                    proces = Process(target=play_sound, args=(SOUND_FILE, True,))
+                    proces = Process(target=play_sound, args=(SOUND_FILE, False,))
                     proces.start()
                 if proces.is_alive(): color = (255,0,0)
-                    # motion_duration = 0
+            
             # motion_status.append(np.array([[lmk.x, lmk.y] for lmk in result.pose_landmarks.landmark]))
             motion_status.append(np.array([[lmk.x, lmk.y] for lmk in face_results.multi_face_landmarks[0].landmark]))
-
-            text = f"{motion_duration:.2f}/{round(no_motion_duration)} ({'Dikkat' if proces.is_alive() else 'Normal'})"
+            text = f"{motion_duration:.2f}/{round(no_motion_duration)} ({'Dikkat' if proces.is_alive() else f'FPS:{fps2:.0f}'})"
             # Update motion status
         
         # Check if a hand and face are detected in the frame
@@ -217,35 +246,53 @@ async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
                 facial_emotion_id = keypoint_classifier(pre_processed_landmark_list)
                 
                 emotion = keypoint_classifier_labels[facial_emotion_id]
+                
+                emotion_data.append(emotion)
+                current_time = datetime.datetime.now()
+                
+                if (current_time - shift_start_time).seconds >= 1*60:  # every 15 minutes             
+                    emotion_chart, dominant_emotions, emotion_data, emotion_counts, current_time, shift_start_time  = \
+                        get_emotion_chart(dominant_emotions, emotion_data, emotion_counts, current_time, (200,200))
+  
+  
+        
+        image = bind_emotion_chart_on_image(image, emotion_chart)
+            
 
         if hand_results.multi_hand_landmarks and face_results.multi_face_landmarks:
-            mp_cellphone_usage_detected = is_using_cellphone(face_results.multi_face_landmarks[0],
-                                                  hand_results.multi_hand_landmarks[0], mp_hands)
+            mp_cellphone_usage_detected = is_using_cellphone(
+                face_results.multi_face_landmarks[0],
+                hand_results.multi_hand_landmarks[0], 
+                mp_hands,
+                cellphone_distance_threshold )
             
         if mp_cellphone_usage_detected:
             # chekc if hand is near the ear is cell phone exists?
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
-
-            detection_result = detector.detect(mp_image)
+            # mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
+            detections = yolo_model.predict(Image.fromarray(image))
+            
+            """ detection_result = detector.detect(mp_image)
             filtered_detections = [
                     detection
                     for detection in detection_result.detections
                     if any(category.category_name == "cell phone" for category in detection.categories)
-                    ]
+                    ] """
+            # 67 is cell phone index nr.
             
+            for detection in detections[0]:
+                
+                # Get bounding box coordinates and convert them to integers
+                (x1, y1, x2, y2), class_index, conf = map(int, detection.boxes.xyxy[0]), int(detection.boxes.cls), int(detection.boxes.conf * 100)
+                # Draw the bounding box and label only for cell phones (class index 67)
+                if class_index == 67:
+                    # Draw the bounding box on the image
+                    cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(image, f"cep tel {conf}%", (x1+10, y1+10), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),1)
+                    # Get the class label from the class index
+                    cellphone_usage_detected = True
+                    # Draw the class label and confidence score
             
-       
-            if filtered_detections:
-
-                image = visualize(image.copy(), filtered_detections)
-                cellphone_usage_detected = True
-            
-            
-        
-        text += " | Sigara: VAR " if smoking_detected else " | Sigara: YOK "
-        
-        text += " | Tel: VAR." if cellphone_usage_detected else " | Tel: YOK."
-        text += f"| Ruhsal D: {emotion}"
+        text = text_update(text, smoking_detected, mp_cellphone_usage_detected, cellphone_usage_detected, emotion)
 
         yy = 0
         for txt in text.split('\n'):
@@ -264,6 +311,7 @@ async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
     else:
         cap.release()
         cv2.destroyAllWindows()
+        return None
         
 
 

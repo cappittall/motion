@@ -13,3 +13,4 @@ python-periphery==2.3.0
 uvicorn==0.21.1
 mediapipe
 pygame
+PyQt5==5.15.9

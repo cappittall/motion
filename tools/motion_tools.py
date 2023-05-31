@@ -2,7 +2,8 @@ import copy
 import itertools
 import cv2
 import numpy as np
-
+from PIL import Image
+import supervision as sv
 
 def calc_landmark_list(image, landmarks):
     image_width, image_height = image.shape[1], image.shape[0]
@@ -100,4 +101,42 @@ def text_update(text, smoking_detected, mp_cellphone_usage_detected, cellphone_u
         text += f" | Tel: VAR.({mp_cellphone_usage_detected})" if cellphone_usage_detected else f" | Tel: YOK.({mp_cellphone_usage_detected})"
         text += f"| Ruhsal D: {emotion}"
         return text
+    
+def yolo_detect_n_annotate_imame(image, yolo_model, nas_model, nas=True):
+    
+    if nas:
+        result = list(nas_model.predict(Image.fromarray(image), conf=0.35))[0]
+        detections = sv.Detections(
+                    xyxy=result.prediction.bboxes_xyxy,
+                    confidence=result.prediction.confidence,
+                    class_id=result.prediction.labels.astype(int)
+                )
+        box_annotator = sv.BoxAnnotator()
+        labels = [
+            f"{result.class_names[class_id]} {confidence:0.2f}"
+            for _, _, confidence, class_id, _ in detections]
+        annotated_frame = box_annotator.annotate(
+                        scene=image.copy(),
+                        detections=detections,
+                        labels=labels
+                    )
+        
+        return annotated_frame
+    
+    else:
+        detections = yolo_model.predict(Image.fromarray(image))
+        for detection in detections:           
+            # Get bounding box coordinates and convert them to integers
+            (x1, y1, x2, y2), class_index, conf = map(int, detection.boxes.xyxy[0]), int(detection.boxes.cls), int(detection.boxes.conf * 100)
+            # Draw the bounding box and label only for cell phones (class index 67)
+            if class_index == 67:
+                # Draw the bounding box on the image
+                cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(image, f"cep tel {conf}%", (x1+10, y1+10), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),1)
+                # Get the class label from the class index
+                cellphone_usage_detected = True
+                # Draw the class label and confidence score
+        return image
+
+
     

@@ -33,7 +33,13 @@ from mediapipe.tasks.python import vision
 
 # YOLO 
 from ultralytics import YOLO 
-yolo_model = YOLO("yolov8l.pt")
+from super_gradients.training import models
+import torch 
+
+DEVICE = 'cuda' if torch.cuda.is_available() else "cpu"
+nas_model = models.get('yolo_nas_l', pretrained_weights="coco").to(DEVICE)
+
+yolo_model = YOLO("models/yolov8l.pt")
 
 from emotion.model import KeyPointClassifier
 from tools import *
@@ -269,29 +275,8 @@ async def motion_detections(data:LineValuesAndCheckboxes, request:Request=None):
         if mp_cellphone_usage_detected:
             # chekc if hand is near the ear is cell phone exists?
             # mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
-            detections = yolo_model.predict(Image.fromarray(image))
-            
-            """ detection_result = detector.detect(mp_image)
-            filtered_detections = [
-                    detection
-                    for detection in detection_result.detections
-                    if any(category.category_name == "cell phone" for category in detection.categories)
-                    ] """
-            # 67 is cell phone index nr.
-            
-            for detection in detections[0]:
-                
-                # Get bounding box coordinates and convert them to integers
-                (x1, y1, x2, y2), class_index, conf = map(int, detection.boxes.xyxy[0]), int(detection.boxes.cls), int(detection.boxes.conf * 100)
-                # Draw the bounding box and label only for cell phones (class index 67)
-                if class_index == 67:
-                    # Draw the bounding box on the image
-                    cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(image, f"cep tel {conf}%", (x1+10, y1+10), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),1)
-                    # Get the class label from the class index
-                    cellphone_usage_detected = True
-                    # Draw the class label and confidence score
-            
+            image = yolo_detect_n_annotate_imame(image, yolo_model, nas_model, nas=True )
+                        
         text = text_update(text, smoking_detected, mp_cellphone_usage_detected, cellphone_usage_detected, emotion)
 
         yy = 0

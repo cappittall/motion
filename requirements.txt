@@ -2,7 +2,7 @@ numpy
 fastapi==0.95.0
 filterpy==1.4.5
 opencv_python_headless==4.7.0.72
-pydantic==1.10.6
+pydantic
 PySide2==5.15.2.1
 requests==2.28.2
 scipy==1.9.1
@@ -14,3 +14,8 @@ uvicorn==0.21.1
 mediapipe
 pygame
 PyQt5==5.15.9
+uvicorn
+super-gradients
+supervision
+
+

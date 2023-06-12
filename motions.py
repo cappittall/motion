@@ -41,7 +41,7 @@ nas_model = models.get('yolo_nas_l', pretrained_weights="coco").to(DEVICE)
 
 yolo_model = YOLO("models/yolov8l.pt")
 
-from emotion.model import KeyPointClassifier
+
 from tools import *
 
 app = FastAPI()
@@ -51,7 +51,7 @@ templates = Jinja2Templates(directory="templates")
 
 BASE_PATH  = os.getcwd()
 SOUND_FILE = "data/sounds/mixkit-classic-alarm-995.wav"
-MODEL_PATH = "emotion/model/keypoint_classifier/keypoint_classifier.tflite"
+MODEL_PATH = "tools/keypoint_classifier/keypoint_classifier.tflite"
 
 mp_drawing = mp.solutions.drawing_utils
 
@@ -96,7 +96,7 @@ emotion_data = deque(maxlen=1*60*6)  # 5 fps assuming fps frames per second
 shift_start_time = datetime.datetime.now()
 
 # Read labels
-with open('emotion/model/keypoint_classifier/keypoint_classifier_label.csv',
+with open('tools/keypoint_classifier/keypoint_classifier_label.csv',
             encoding='utf-8-sig') as f:
     keypoint_classifier_labels = csv.reader(f)
     keypoint_classifier_labels = [

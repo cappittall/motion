@@ -4,6 +4,9 @@ import cv2
 import numpy as np
 from PIL import Image
 import supervision as sv
+import os
+os.environ["CRASH_HANDLER"] = "FALSE"
+
 
 def calc_landmark_list(image, landmarks):
     image_width, image_height = image.shape[1], image.shape[0]
@@ -111,9 +114,13 @@ def yolo_detect_n_annotate_imame(image, yolo_model, nas_model, nas=True):
                     confidence=result.prediction.confidence,
                     class_id=result.prediction.labels.astype(int)
                 )
+        
+        detections = detections[detections.class_id == 67]
+        
+        
         box_annotator = sv.BoxAnnotator()
         labels = [
-            f"{result.class_names[class_id]} {confidence:0.2f}"
+            f"cep telefonu {confidence:.0%}"
             for _, _, confidence, class_id, _ in detections]
         annotated_frame = box_annotator.annotate(
                         scene=image.copy(),
@@ -125,17 +132,21 @@ def yolo_detect_n_annotate_imame(image, yolo_model, nas_model, nas=True):
     
     else:
         detections = yolo_model.predict(Image.fromarray(image))
-        for detection in detections:           
+        
+        for indx,detection in enumerate(detections):           
             # Get bounding box coordinates and convert them to integers
-            (x1, y1, x2, y2), class_index, conf = map(int, detection.boxes.xyxy[0]), int(detection.boxes.cls), int(detection.boxes.conf * 100)
+            print(detection.boxes.xyxy.tolist()[indx], detection.boxes.cls.tolist()[indx], detection.boxes.conf.tolist()[indx] )
+            bbox, clss, conf = (detection.boxes.xyxy.tolist()[indx], detection.boxes.cls.tolist()[indx], detection.boxes.conf.tolist()[indx])
+            x1, y1, x2, y2 = [int(x) for x in bbox] 
+            class_index = int(clss)
+            confidence = int(conf * 100)
+
             # Draw the bounding box and label only for cell phones (class index 67)
             if class_index == 67:
                 # Draw the bounding box on the image
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(image, f"cep tel {conf}%", (x1+10, y1+10), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),1)
+                cv2.putText(image, f"cep tel {confidence}%", (x1+10, y1+10), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),1)
                 # Get the class label from the class index
-                cellphone_usage_detected = True
-                # Draw the class label and confidence score
         return image
 
 

@@ -1,5 +1,6 @@
 # İşçi Sağlığı ve Güvenliği: Hareketsizlik Detectörü
 Test etmek için 1.5 -2 m uzakta kamera açısında hareketsiz durarak bekleyiniz. 
+Bunun dışında 
 
 This is a Python repository for the Worker Health and Safety (İşçi Sağlığı ve Güvenliği) project that focuses on detecting NO-MOTINON
 
